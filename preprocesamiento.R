@@ -1,9 +1,5 @@
 require("data.table")
 
-# Download the file
-download.file('https://cdn.buenosaires.gob.ar/datosabiertos/datasets/sbase/subte-viajes-molinetes/molinetes-2022.zip', 
-              destfile=getwd(),mode = "wb")
-
 correccion <- function(df){
   
   #apply gsub to every column with lapply and return the same dataframe
