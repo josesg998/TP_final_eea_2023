@@ -196,3 +196,6 @@ ggplot()+
   theme(legend.position = "bottom")
 
 fwrite(estaciones,"estaciones.csv.gz")
+
+mol_total_final <- merge(mol_total, estaciones,by="LINEA_ESTACION")
+fwrite(mol_total_final,"mol_total_final.csv.gz")
