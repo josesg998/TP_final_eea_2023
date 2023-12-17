@@ -210,3 +210,23 @@ estaciones |> st_transform(crs = 4326) |> st_coordinates() |> as.data.frame() |>
   select(LINEA,ESTACION,BARRIO,COMUNA,long,lat,universidades,escuelas,hospitales,centros_culturales,puntos_verdes) |>
   arrange(-escuelas) |> head() |> clipr::write_clip(dec=',')
 
+
+mapa_edif <- function(edificio){
+ggplot()+
+  geom_sf(data=barrios[barrios$tiene_subte==1,])+
+  geom_sf(data=estaciones,aes(color=LINEA,size=get(edificio)))+
+  geom_sf(data=lineas,aes(color=LINEA))+
+  scale_color_manual(values=colores_subte)+
+  theme_void()+
+  theme(legend.position = "none",
+        plot.background = element_rect(fill = "#f5f4ec",colour = "#f5f4ec"),
+        plot.margin = margin(.5,.5,.5,.5, "cm"))+
+    labs(title=paste(gsub("_"," ",edificio),"por estación"))
+}
+
+
+gridExtra::grid.arrange(mapa_edif("puntos_verdes"),
+                        mapa_edif("centros_culturales"),
+                        mapa_edif("hospitales"),ncol=3)
+
+gridExtra::grid.arrange(mapa_edif("escuelas"),mapa_edif("universidades"),ncol=2)
