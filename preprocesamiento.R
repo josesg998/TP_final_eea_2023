@@ -1,4 +1,5 @@
 require("data.table")
+# setwd("molinetes")
 
 correccion <- function(df){
   
@@ -59,12 +60,29 @@ mol_2017_sep$FECHA <- as.POSIXct(mol_2017_sep$FECHA,format = "%d/%m/%Y")
 mol_2017_sep <- mol_2017_sep[month(mol_2017_sep$FECHA)==9,]
 
 
+desde_hasta <- function(mol_total){
+  
+  mol_total$DESDE <- as.POSIXct(paste(mol_total$FECHA,mol_total$DESDE,sep=" "),format = "%Y-%m-%d %H:%M:%S")
+  mol_total$HASTA <- as.POSIXct(paste(mol_total$FECHA,mol_total$HASTA,sep=" "),format = "%Y-%m-%d %H:%M:%S")
+  
+  return(mol_total)
+  
+}
+
+mol_2017_sep <- desde_hasta(mol_2017_sep)
+mol_2018_sep <- desde_hasta(mol_2018_sep)
+mol_2019_sep <- desde_hasta(mol_2019_sep)
+mol_2020_sep <- desde_hasta(mol_2020_sep)
+mol_2021_sep <- desde_hasta(mol_2021_sep)
+mol_2022_sep <- desde_hasta(mol_2022_sep)
+mol_2023_sep <- desde_hasta(mol_2023_sep)
+
+
+
 mol_total <- rbind(mol_2017_sep,mol_2018_sep,mol_2019_sep,mol_2020_sep,mol_2021_sep,mol_2022_sep,mol_2023_sep,fill = T)
 
 mol_total$LINEA <- gsub("Linea","",mol_total$LINEA)
 
-mol_total$DESDE <- as.POSIXct(paste(mol_total$FECHA,mol_total$DESDE,sep=" "),format = "%Y-%m-%d %H:%M:%S")
-mol_total$HASTA <- as.POSIXct(paste(mol_total$FECHA,mol_total$HASTA,sep=" "),format = "%Y-%m-%d %H:%M:%S")
 
 #mol_total$DESDE <- as.POSIXct(paste(mol_total$FECHA,mol_total$DESDE,sep=" "),format = "%Y-%m-%d %H:%M:%S")
 
@@ -88,7 +106,7 @@ for(column in c("pax_pagos","pax_pases_pagos","pax_franq","pax_TOTAL")){
 
 mol_total$ANIO <- year(mol_total$FECHA)
 mol_total$MES <- month(mol_total$FECHA)
-mol_total$HORA <- hour(mol_total$DESDE)
+mol_total$HORA <- hour(mol_total$HASTA)
 mol_total$DIA <- wday(mol_total$FECHA)
 mol_total$DIA_MES <- mday(mol_total$FECHA)
 mol_total$HORA_PICO <- ifelse(mol_total$HORA %in% c(7:9,17:19),1,0)
@@ -150,7 +168,7 @@ barrios <- st_as_sf(barrios, wkt = "WKT", crs = 4326)
 
 # Realiza la operación de punto en polígono para asignar el barrio
 estaciones <- st_join(estaciones, barrios)
-estaciones <- estaciones_sf[,c("id","LINEA_ESTACION","BARRIO","COMUNA")]
+estaciones <- estaciones[,c("id","LINEA_ESTACION","BARRIO","COMUNA")]
 
 # escuelas
 escuelas <- st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-educacion/establecimientos-educativos/escuelas-verdes-wgs84.geojson")
@@ -195,7 +213,10 @@ ggplot()+
   theme_void()+
   theme(legend.position = "bottom")
 
+
+sf::write_sf(estaciones,"estaciones.geojson")
 fwrite(estaciones,"estaciones.csv.gz")
 
 mol_total_final <- merge(mol_total, estaciones,by="LINEA_ESTACION")
 fwrite(mol_total_final,"mol_total_final.csv.gz")
+sf::write_sf(mol_total_final,"mol_total_final.geojson")
