@@ -5,13 +5,10 @@ require("parallel")
 require("data.table")
 require("tidyr")
 
-
 set.seed(123)
 
-
-
 df = fread('datasets/molinetes.csv.gz')
-
+# agrupamos por estación y hora
 df <- df[,.(pax_TOTAL=sum(pax_TOTAL)),by=list(LINEA_ESTACION,FECHA,DESDE,HASTA)]
 
 estaciones = fread('datasets/estaciones.csv.gz')
@@ -22,13 +19,13 @@ estaciones$lat <- as.numeric(estaciones$lat)
 estaciones$long <- as.numeric(estaciones$long)
 estaciones$COMUNA <- as.character(estaciones$COMUNA)
 
+# one hot encoding
 barrio_encoded <- dcast(estaciones, LINEA_ESTACION ~ BARRIO, fun.aggregate = length)
 comuna_encoded <- dcast(estaciones, LINEA_ESTACION ~ COMUNA, fun.aggregate = length)
 
 names(comuna_encoded)[2:length(names(comuna_encoded))] <- paste0("com_", names(comuna_encoded))
 
 LINEA_ESTACION_encoded <- dcast(estaciones, LINEA_ESTACION ~ LINEA_ESTACION, fun.aggregate = length)
-
 
 estaciones <- merge(estaciones, barrio_encoded, by = "LINEA_ESTACION")
 estaciones <- merge(estaciones, comuna_encoded, by = "LINEA_ESTACION")
@@ -39,6 +36,7 @@ estaciones[,id:=NULL]
 
 data <- merge(df, estaciones, by = "LINEA_ESTACION")
 
+# volvemos a generar variables temporales
 data$ANIO <-            year(data$FECHA)
 data$MES <-            month(data$FECHA)
 data$HORA_DESDE <-      hour(data$DESDE)
@@ -55,12 +53,14 @@ columns_to_remove <- c("DESDE", "HASTA", "FECHA",
                        "LINEA_ESTACION","BARRIO","COMUNA")
 data[, (columns_to_remove) := NULL]
 
+# corrigo nombres de columnas para que los tome la librería
 names(data) <- gsub(" ", "_", names(data))
 names(data) <- gsub("Ñ", "N", names(data))
 
+# me quedo con el subset de entrenamiento
 data <- data[ANIO!=2023]
 
-# Define el espacio de parámetros
+# Defino el espacio de hiperparámetors
 PARAM <- makeParamSet(
   # makeNumericParam("cp", lower = 0.1, upper = 0.1),
   makeIntegerParam("minsplit", lower = 1L, upper = 8000L),
@@ -69,22 +69,19 @@ PARAM <- makeParamSet(
   forbidden = quote(minbucket > 0.5 * minsplit)
 )
 
-# Define la tarea
+# Defino la tarea
 task <- makeRegrTask(data = data, target = "pax_TOTAL")
 
-# Define la estrategia de validación cruzada
+# Defino la estrategia de validación cruzada (5-fold)
 cv <- makeResampleInstance("CV", task,iters=5)
 
-# Define el modelo de regresión rpart
+# Defino el modelo de regresión rpart
 lrn <- makeLearner("regr.rpart", predict.type = "response")
 
-# Define el diseño de experimento
-design <- makeTuneControlRandom(maxit = 50)  # Puedes ajustar el número máximo de iteraciones
+# Defino el diseño de experimento (cantidad de iteraciones)
+design <- makeTuneControlRandom(maxit = 50)
 
-# Ruta del archivo para los resultados anteriores
-archivo_resultados <- "resultados.txt"
-
-# Realiza la optimización de hiperparámetros
+# Realizo la optimización de hiperparámetros
 res <- tuneParams(
   learner = lrn,
   task = task,

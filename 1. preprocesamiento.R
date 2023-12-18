@@ -2,8 +2,8 @@ require("data.table")
 # setwd("molinetes")
 
 correccion <- function(df){
+  # Función para corregir datos y facilitar su combinación
   
-  #apply gsub to every column with lapply and return the same dataframe
   df <- as.data.frame(lapply(df, function(x) gsub('"','',x)))
   
   names(df) <- gsub('"|X.|\\.','',names(df))
@@ -11,7 +11,8 @@ correccion <- function(df){
   return(df)
 }
 
-
+# Importamos datos y nos quedamos con septiembre
+################################################
 #2022
 mol_2022_sep <- rbind(correccion(fread("molinetes-2022/202209_PAX15min-ABC.csv",encoding='Latin-1',stringsAsFactors = F,sep=";",quote = "")),
                       correccion(fread("molinetes-2022/202209_PAX15min-DEH.csv",encoding='Latin-1',stringsAsFactors = F,sep=";",quote = "")[,5:14]))
@@ -24,7 +25,8 @@ mol_2022_sep$FECHA <- as.POSIXct(mol_2022_sep$FECHA,format = "%d/%m/%Y")
 mol_2023_sep$FECHA <- as.POSIXct(mol_2023_sep$FECHA,format = "%d/%m/%Y")
 
 columnas <- names(mol_2022_sep)
-# decompresss molinetes-2018.zip
+
+# descomprimimos molinetes-2018.zip
 for (i in 2017:2021){unzip(paste0("molinetes-",i,".zip"))}
 
 #2021
@@ -58,8 +60,9 @@ mol_2017_sep <- mol_2017_sep[,c(2:6,8:12)]
 names(mol_2017_sep)[7:10] <- c("pax_pagos","pax_pases_pagos","pax_franq","pax_TOTAL")
 mol_2017_sep$FECHA <- as.POSIXct(mol_2017_sep$FECHA,format = "%d/%m/%Y")
 mol_2017_sep <- mol_2017_sep[month(mol_2017_sep$FECHA)==9,]
+################################################
 
-
+# paso las variables de tiempo a formato posixct
 desde_hasta <- function(mol_total){
   
   mol_total$DESDE <- as.POSIXct(paste(mol_total$FECHA,mol_total$DESDE,sep=" "),format = "%Y-%m-%d %H:%M:%S")
@@ -77,15 +80,11 @@ mol_2021_sep <- desde_hasta(mol_2021_sep)
 mol_2022_sep <- desde_hasta(mol_2022_sep)
 mol_2023_sep <- desde_hasta(mol_2023_sep)
 
-
-
+# combino todos los años
 mol_total <- rbind(mol_2017_sep,mol_2018_sep,mol_2019_sep,mol_2020_sep,mol_2021_sep,mol_2022_sep,mol_2023_sep,fill = T)
 
+# estandarizo columnas de texto
 mol_total$LINEA <- gsub("Linea","",mol_total$LINEA)
-
-
-#mol_total$DESDE <- as.POSIXct(paste(mol_total$FECHA,mol_total$DESDE,sep=" "),format = "%Y-%m-%d %H:%M:%S")
-
 mol_total$LINEA <- gsub("LINEA_","",mol_total$LINEA)
 
 mol_total$ESTACION <- gsub("\u0081|Â\u0081|Ã¼|ÃƒÂƒÃ‚Â¼|ï¿½","ü",mol_total$ESTACION)
@@ -104,13 +103,14 @@ for(column in c("pax_pagos","pax_pases_pagos","pax_franq","pax_TOTAL")){
   mol_total[[column]] <- as.numeric(mol_total[[column]])
 }
 
-mol_total$ANIO <- year(mol_total$FECHA)
-mol_total$MES <- month(mol_total$FECHA)
-mol_total$HORA <- hour(mol_total$HASTA)
-mol_total$DIA <- wday(mol_total$FECHA)
-mol_total$DIA_MES <- mday(mol_total$FECHA)
-mol_total$HORA_PICO <- ifelse(mol_total$HORA %in% c(7:9,17:19),1,0)
-mol_total$LINEA_ESTACION <- paste(mol_total$LINEA,mol_total$ESTACION,sep="_")
+# genero variables de tiempo
+mol_total$ANIO <- year(mol_total$FECHA) # año
+mol_total$MES <- month(mol_total$FECHA) # mes
+mol_total$HORA <- hour(mol_total$HASTA) # hora
+mol_total$DIA <- wday(mol_total$FECHA) # dia de la semana
+mol_total$DIA_MES <- mday(mol_total$FECHA) # dia del mes
+mol_total$HORA_PICO <- ifelse(mol_total$HORA %in% c(7:9,17:19),1,0) # hora pico
+mol_total$LINEA_ESTACION <- paste(mol_total$LINEA,mol_total$ESTACION,sep="_") # linea + estacion
 
 fwrite(mol_total,"molinetes.csv.gz")
 
@@ -159,8 +159,10 @@ estaciones$LINEA_ESTACION <- paste0(estaciones$linea,"_",estaciones$estacion)
 estaciones <- estaciones[,c("id","LINEA_ESTACION","lat","long")]
 
 
+fuente <- "https://cdn.buenosaires.gob.ar/datosabiertos/datasets/"
+
 # detectar si la estación está dentro de un barrio
-barrios <- fread("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-educacion/barrios/barrios.csv")
+barrios <- fread(paste(fuente,"ministerio-de-educacion/barrios/barrios.csv"))
 
 # Crea objetos sf para los dataframes
 estaciones <- st_as_sf(estaciones, coords = c("long", "lat"), crs = 4326)
@@ -170,21 +172,21 @@ barrios <- st_as_sf(barrios, wkt = "WKT", crs = 4326)
 estaciones <- st_join(estaciones, barrios)
 estaciones <- estaciones[,c("id","LINEA_ESTACION","BARRIO","COMUNA")]
 
-# escuelas
-escuelas <- st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-educacion/establecimientos-educativos/escuelas-verdes-wgs84.geojson")
-hospitales <- st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-salud/hospitales/hospitales.geojson")
-universidades <- fread("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-educacion/universidades/universidades.csv")
-centros_culturales <- st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/ministerio-de-cultura/espacios-culturales/espacios-culturales.geojson")
-puntos_verdes <- st_read("https://cdn.buenosaires.gob.ar/datosabiertos/datasets/agencia-de-proteccion-ambiental/puntos-verdes/puntos-verdes.geojson")
+# obtengo ubicación de diferentes esidificios
+escuelas <-           st_read(paste(fuente,"ministerio-de-educacion/establecimientos-educativos/escuelas-verdes-wgs84.geojson"))
+hospitales <-         st_read(paste(fuente,"ministerio-de-salud/hospitales/hospitales.geojson"))
+universidades <-        fread(paste(fuente,"ministerio-de-educacion/universidades/universidades.csv"))
+centros_culturales <- st_read(paste(fuente,"ministerio-de-cultura/espacios-culturales/espacios-culturales.geojson"))
+puntos_verdes <-      st_read(paste(fuente,"agencia-de-proteccion-ambiental/puntos-verdes/puntos-verdes.geojson"))
 
 universidades <- universidades[,list(univ_c,universida,unidad_aca,direccion_norm,lat,long)]
-# remover duplicados
+# me quedo sin duplicados en la dirección
 universidades <- universidades[!duplicated(universidades$direccion_norm),]
 universidades <- st_as_sf(universidades, coords = c("long", "lat"), crs = 4326)
-
+# me quedo sin duplicados en la dirección
 centros_culturales <- centros_culturales[!duplicated(centros_culturales$DIRECCION),]
 
-# Función para contar el número de escuelas dentro de 300 metros de una estación
+# Función para contar el número de edificio dentro de 500 metros de una estación
 contar_edificios <- function(mapa,distancia) {
   buffer <- st_buffer(estaciones, dist = distancia)  # Crea un buffer de 300 metros alrededor de la estación
   conteo <- lengths(st_intersects(buffer, mapa))
@@ -197,23 +199,7 @@ estaciones$hospitales <- contar_edificios(hospitales,500)
 estaciones$centros_culturales <- contar_edificios(centros_culturales,500)
 estaciones$puntos_verdes <- contar_edificios(puntos_verdes,500)
 
-
-buffer <- st_buffer(estaciones, dist = 500)
-
-ggplot()+
-  geom_sf(data=barrios)+
-  geom_sf(data=buffer)+
-  geom_sf(data=escuelas,color="red")+
-  geom_sf(data=universidades,color="orange")+
-  #geom_sf(data=centros_culturales,color="purple",alpha=.2)+
-  geom_sf(data=hospitales,color="blue")+
-  geom_sf(data=puntos_verdes,color="green")+
-  #add legend
-  #scale_color_manual(values=c("orange","blue","red","green"),labels=c("Universidades","Hospitales","Escuelas","Puntos verdes"))+
-  theme_void()+
-  theme(legend.position = "bottom")
-
-
+# guardo todo en csv y geojson
 sf::write_sf(estaciones,"estaciones.geojson")
 fwrite(estaciones,"estaciones.csv.gz")
 

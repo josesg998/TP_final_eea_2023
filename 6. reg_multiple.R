@@ -3,8 +3,11 @@ require("data.table")
 require("tidyr")
 require("tidymodels")
 
-df = fread('datasets/molinetes.csv.gz')
+#########################
+# importo datasets + feature engineering
 
+df = fread('datasets/molinetes.csv.gz')
+# agrupamos por estación y hora
 df <- df[,.(pax_TOTAL=sum(pax_TOTAL)),by=list(LINEA_ESTACION,FECHA,DESDE,HASTA)]
 
 estaciones = fread('datasets/estaciones.csv.gz')
@@ -15,11 +18,24 @@ estaciones$lat <- as.numeric(estaciones$lat)
 estaciones$long <- as.numeric(estaciones$long)
 estaciones$COMUNA <- as.character(estaciones$COMUNA)
 
+# one hot encoding
+barrio_encoded <- dcast(estaciones, LINEA_ESTACION ~ BARRIO, fun.aggregate = length)
+comuna_encoded <- dcast(estaciones, LINEA_ESTACION ~ COMUNA, fun.aggregate = length)
+
+names(comuna_encoded)[2:length(names(comuna_encoded))] <- paste0("com_", names(comuna_encoded))
+
+LINEA_ESTACION_encoded <- dcast(estaciones, LINEA_ESTACION ~ LINEA_ESTACION, fun.aggregate = length)
+
+estaciones <- merge(estaciones, barrio_encoded, by = "LINEA_ESTACION")
+estaciones <- merge(estaciones, comuna_encoded, by = "LINEA_ESTACION")
+estaciones <- merge(estaciones, LINEA_ESTACION_encoded, by = "LINEA_ESTACION")
+
 # Joineamos entre df y estaciones
 estaciones[,id:=NULL]
 
 data <- merge(df, estaciones, by = "LINEA_ESTACION")
 
+# volvemos a generar variables temporales
 data$ANIO <-            year(data$FECHA)
 data$MES <-            month(data$FECHA)
 data$HORA_DESDE <-      hour(data$DESDE)
@@ -32,21 +48,25 @@ data$minutos_desde <- lubridate::minute(data$DESDE)
 data$minutos_hasta <- lubridate::minute(data$HASTA)
 
 # Descartamos columnas:
-columns_to_remove <- c(#"DESDE", "HASTA", "FECHA",
+columns_to_remove <- c("DESDE", "HASTA", "FECHA",
                        "LINEA_ESTACION","BARRIO","COMUNA")
 data[, (columns_to_remove) := NULL]
 
+# corrigo nombres de columnas para que los tome la librería
+names(data) <- gsub(" ", "_", names(data))
+names(data) <- gsub("Ñ", "N", names(data))
+
+# genero el train y el test
 train <- data[ANIO != 2023]
 test <- data[ANIO == 2023]
 
-# generate a multiple regression
+# realizo la regresión múltiple
 model <- lm(pax_TOTAL ~ ., data = train)
 summary(model)
 
 prediccion_lineal <- predict(
   object = model,
-  newdata = test
-)
+  newdata = test)
 
 resultados <- tidy(model)
 

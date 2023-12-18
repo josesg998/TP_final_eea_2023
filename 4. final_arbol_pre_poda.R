@@ -1,4 +1,4 @@
-# Carga las bibliotecas
+# Cargo las bibliotecas
 require("mlr")
 require("rpart")
 require("parallel")
@@ -7,21 +7,19 @@ require("tidyr")
 require("rpart.plot")
 
 #########################
-# estos valores son simplemente de ejemplo
+# defino hiperparámetors obtenidos de la optimización bayesiana
 
 PARAM <- list()
-PARAM$rpart$cp <- 0.01
+PARAM$rpart$cp <- 0.01 # esto quedó fijo
 PARAM$rpart$minsplit <- 288
 PARAM$rpart$minbucket <- 24
 PARAM$rpart$maxdepth <- 18
 
 #########################
-
-
-set.seed(123)
+# importo datasets + feature engineering
 
 df = fread('datasets/molinetes.csv.gz')
-
+# agrupamos por estación y hora
 df <- df[,.(pax_TOTAL=sum(pax_TOTAL)),by=list(LINEA_ESTACION,FECHA,DESDE,HASTA)]
 
 estaciones = fread('datasets/estaciones.csv.gz')
@@ -32,13 +30,13 @@ estaciones$lat <- as.numeric(estaciones$lat)
 estaciones$long <- as.numeric(estaciones$long)
 estaciones$COMUNA <- as.character(estaciones$COMUNA)
 
+# one hot encoding
 barrio_encoded <- dcast(estaciones, LINEA_ESTACION ~ BARRIO, fun.aggregate = length)
 comuna_encoded <- dcast(estaciones, LINEA_ESTACION ~ COMUNA, fun.aggregate = length)
 
 names(comuna_encoded)[2:length(names(comuna_encoded))] <- paste0("com_", names(comuna_encoded))
 
 LINEA_ESTACION_encoded <- dcast(estaciones, LINEA_ESTACION ~ LINEA_ESTACION, fun.aggregate = length)
-
 
 estaciones <- merge(estaciones, barrio_encoded, by = "LINEA_ESTACION")
 estaciones <- merge(estaciones, comuna_encoded, by = "LINEA_ESTACION")
@@ -49,6 +47,7 @@ estaciones[,id:=NULL]
 
 data <- merge(df, estaciones, by = "LINEA_ESTACION")
 
+# volvemos a generar variables temporales
 data$ANIO <-            year(data$FECHA)
 data$MES <-            month(data$FECHA)
 data$HORA_DESDE <-      hour(data$DESDE)
@@ -65,12 +64,13 @@ columns_to_remove <- c("DESDE", "HASTA", "FECHA",
                        "LINEA_ESTACION","BARRIO","COMUNA")
 data[, (columns_to_remove) := NULL]
 
+# corrigo nombres de columnas para que los tome la librería
 names(data) <- gsub(" ", "_", names(data))
 names(data) <- gsub("Ñ", "N", names(data))
 
+#divido en train y test (queremos predecir 2023)
 train <- data[ANIO != 2023]
 test <- data[ANIO == 2023]
-# test[,pax_TOTAL:=NULL]
 
 ################
 # genero el modelo,  aqui se construye el arbol
@@ -92,6 +92,6 @@ rmse <- sqrt(mean((prediccion - test$pax_TOTAL)^2))
 print(error)
 print(rmse)
 
-#plot tree
+# grafico el árbol
 require("ggplot2")
 prp(modelo,)
