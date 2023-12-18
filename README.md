@@ -11,10 +11,15 @@ En este trabajo se abordó la problemática del aglomeramiento de pasajeros en e
 `2. EDA.R`: Armado de visualizaciones para el análisis exploratorio de datos.
 
 `3. BO_arbol_pre_poda.R`: Optimización bayesiana para obtener los mejores hiperparámetros del árbol de regresión (pre-poda).
+- `resultados_BO_pre_poda`: resultados de la optimización bayesiana.
 
 `4. final_arbol_pre_poda.R`: Corrida final del arbol de decisión y predicción del flujo de pasajeros en septiembre de 2023.
 
 `5. entrenamiento_post_poda.R`: Construcción del árbol de decisión con técnica de post-poda.
 
 `6. reg_multiple.R`: Armado de regresión múltiple como baseline.
+
+## Informe
+
+`Clas_Saint_Germain_Tokman_Propuesta_Trabajo_Final.pdf`: Propuesta de trabajo final en formato pdf.
 
