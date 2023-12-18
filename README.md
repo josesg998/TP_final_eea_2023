@@ -6,7 +6,7 @@ En este trabajo se abordó la problemática del aglomeramiento de pasajeros en e
 
 ## Códigos en R
 
-`1. preprocesamiento.R`: Código para limpieza y preprocesamiento de los datos provenientes de los datos abiertos del [Gobierno de la Ciudad de BUenos Aires](https://data.buenosaires.gob.ar/dataset/).
+`1. preprocesamiento.R`: Código para limpieza y preprocesamiento de los datos provenientes de los datos abiertos del [Gobierno de la Ciudad de Buenos Aires](https://data.buenosaires.gob.ar/dataset/).
 
 `2. EDA.R`: Armado de visualizaciones para el análisis exploratorio de datos.
 
